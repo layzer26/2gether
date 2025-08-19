@@ -1,8 +1,10 @@
 # 2gether
-2gether is a lightweight, offline-first family hub for shared calendars, household tasks, and budgets. It is designed for low-resource environments where bandwidth and device capacity are limited. The system supports role-based permissions to ensure sensitive data is protected while keeping collaboration simple.
-## Badge
 
 [![Core Build and Test](https://github.com/layzer26/2gether/actions/workflows/core.yml/badge.svg)](https://github.com/layzer26/2gether/actions/workflows/core.yml)
+
+2gether is a lightweight, offline-first family hub for shared calendars, household tasks, and budgets. It is designed for low-resource environments where bandwidth and device capacity are limited. The system supports role-based permissions to ensure sensitive data is protected while keeping collaboration simple.
+
+
 
 
 ## Overview
