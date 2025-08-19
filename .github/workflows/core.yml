@@ -1,0 +1,33 @@
+name: Core Build and Test
+
+on:
+  push:
+    paths:
+      - 'core/**'
+      - '.github/workflows/core.yml'
+  pull_request:
+    paths:
+      - 'core/**'
+      - '.github/workflows/core.yml'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libsqlite3-dev
+
+      - name: Configure CMake
+        run: cmake -S core -B core/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build core/build
+
+      - name: Run tests
+        run: ctest --test-dir core/build --output-on-failure
