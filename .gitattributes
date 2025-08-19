@@ -1,2 +1,43 @@
 # Auto detect text files and perform LF normalization
-* text=auto
+* text=auto eol =lf 
+
+# Source code (force LF endings)
+*.c     text eol=lf
+*.cc    text eol=lf
+*.cpp   text eol=lf
+*.cxx   text eol=lf
+*.h     text eol=lf
+*.hpp   text eol=lf
+*.java  text eol=lf
+*.kt    text eol=lf
+*.kts   text eol=lf
+*.gradle text eol=lf
+*.xml   text eol=lf
+*.json  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+
+# Binary files (no diff, keep CRLF if they have it)
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.zip   binary
+*.jar   binary
+*.keystore binary
+
+# GitHub linguist (for repo stats)
+*.md linguist-detectable=true
+docs/* linguist-documentation=true
+
+# CMake: mark as text
+CMakeLists.txt text eol=lf
+*.cmake        text eol=lf
+
+# Ignore generated files for diff
+*.pb.cc   -diff
+*.pb.h    -diff
