@@ -30,3 +30,36 @@
 *.exe
 *.out
 *.app
+
+# CMAKE / Ninja 
+build/
+build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+
+# VS Code 
+.vscode/
+*.code-workspace
+
+# Clanged / Lnaguage Servers 
+.cache/ 
+.clangd/
+
+# Android / Gradle
+.gradle/
+local.properties
+**/build/
+captures/
+.externalNativeBuild/
+.idea/
+*.iml
+
+# Python (tools, scripts)
+.venv/
+__pycache__/
+*.pyc
+
+# OS junk
+.DS_Store
+Thumbs.db
