@@ -4,9 +4,6 @@
 
 2gether is a lightweight, offline-first family hub for shared calendars, household tasks, and budgets. It is designed for low-resource environments where bandwidth and device capacity are limited. The system supports role-based permissions to ensure sensitive data is protected while keeping collaboration simple.
 
-
-
-
 ## Overview
 
 The system consists of two main layers:
