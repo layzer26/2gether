@@ -49,6 +49,10 @@ public:
 
   static const char* version();
 
+  long long deleteTask (const std::string& id,
+                        long long ts_millis,
+                        const std::string& payload_json);
+
 private:
   sqlite3* db_ = nullptr;
 
