@@ -82,7 +82,7 @@ Expected output from the test runner:
 EventStore Version: 2gether_core/0.1.0
 ```
 
-## Building the Android Client
+## Building the Android Client (TO DO)
 
 1. Open the `android/` directory in Android Studio.
 2. Allow Android Studio to generate or upgrade the Gradle wrapper.
