@@ -45,13 +45,13 @@ See [docs/PERMISSIONS.md](docs/PERMISSIONS.md) for details on roles and visibili
 
 ## Repository Structure
 
-├─ core/                     # C++ core (event store, business logic)
-│  ├─ include/core/          # Public headers
-│  ├─ src/                   # Implementation
-│  └─ tests/                 # Unit tests
-├─ android/                  # Android client (Kotlin + JNI stubs)
-├─ docs/                     # Architecture, permissions, roadmap
-├─ .github/workflows/        # CI pipelines
+├─ core/                     
+│  ├─ include/core/          
+│  ├─ src/                   
+│  └─ tests/                 
+├─ android/                  
+├─ docs/                     
+├─ .github/workflows/        
 ├─ .gitignore
 ├─ .gitattributes
 ├─ LICENSE
