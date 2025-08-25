@@ -1,50 +1,81 @@
 #include "core/EventStore.h"
-#include <iostream>
-#include <filesystem>
-#include <chrono>
 
-using together::EventStore;
+#include <chrono>
+#include <filesystem>
+#include <iostream>
+#include <string>
+
 using together::DeltaEvent;
-using namespace std;
-static int fail(const string& msg) {
-  cerr << "TEST FAIL: " << msg << endl;
+using together::EventStore;
+
+static int fail(const std::string& msg) {
+  std::cerr << "TEST FAIL: " << msg << std::endl;
   return 1;
 }
 
 int main() {
-  // keep DB inside the build tree
-  filesystem::create_directories("tmp");
+  // CTest runs from core/build as CWD; keep DB under build/tmp/
+  std::filesystem::create_directories("tmp");
 
   EventStore store;
   if (auto err = store.open("tmp/test.db"); !err.empty()) {
-    return fail("open: " + err);
+    return fail(std::string("open: ") + err);
   }
 
-  DeltaEvent ev;
-  ev.entity_type = "task";
-  ev.entity_id   = "t1";
-  ev.op          = "upsert";
-  ev.payload     = R"({"title":"Do dishes","points":3})";
-  ev.ts          = chrono::duration_cast<chrono::milliseconds>(
-                     chrono::system_clock::now().time_since_epoch()).count();
+  // --- Scenario A: direct append to event_log
+  {
+    DeltaEvent ev;
+    ev.entity_type = "task";
+    ev.entity_id   = "t_direct";
+    ev.op          = "upsert";
+    ev.payload     = R"({"title":"Do dishes","points":3})";
+    ev.ts          = std::chrono::duration_cast<std::chrono::milliseconds>(
+                       std::chrono::system_clock::now().time_since_epoch()).count();
 
-  long long seq = store.append(ev);
-  if (seq < 1) return fail("append returned " + to_string(seq));
+    long long seq = store.append(ev);
+    if (seq < 1) return fail(std::string("append returned ") + std::to_string(seq));
 
-  string qerr;
-  auto events = store.since(0, qerr);
-  if (!qerr.empty()) return fail("since error: " + qerr);
-  if (events.empty()) return fail("no events returned");
+    std::string qerr;
+    auto events = store.since(0, qerr);
+    if (!qerr.empty()) return fail(std::string("since error: ") + qerr);
+    if (events.empty()) return fail("no events returned (scenario A)");
+  }
 
-  const auto& last = events.back();
-  if (last.seq != seq) return fail("seq mismatch");
-  if (last.entity_type != "task") return fail("entity_type mismatch");
-  if (last.entity_id != "t1") return fail("entity_id mismatch");
-  if (last.op != "upsert") return fail("op mismatch");
-  if (last.payload.find("Do dishes") == string::npos)
-    return fail("payload content mismatch");
+  // --- Scenario B: upsertTask (writes task + appends event atomically)
+  {
+    const long long now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                               std::chrono::system_clock::now().time_since_epoch()).count();
 
-  cout << "OK: appended seq=" << seq
-            << " version=" << EventStore::version() << endl;
+    const std::string payload = R"({"title":"Sweep floor","assignees":"kid1","points":2})";
+
+    long long ev_seq = store.upsertTask(
+      "t1",          // id
+      "Sweep floor", // title
+      "kid1",        // assignees_csv
+      0,             // due_at
+      2,             // points
+      "open",        // status
+      "family",      // visibility_tag
+      now_ms,        // updated_at_millis
+      payload        // payload_json
+    );
+
+    if (ev_seq < 1) return fail(std::string("upsertTask returned ") + std::to_string(ev_seq));
+
+    std::string qerr;
+    auto events = store.since(0, qerr);
+    if (!qerr.empty()) return fail(std::string("since error (scenario B): ") + qerr);
+    if (events.empty()) return fail("no events returned (scenario B)");
+
+    const auto& last = events.back();
+    if (last.seq != ev_seq) return fail("seq mismatch (scenario B)");
+    if (last.entity_type != "task") return fail("entity_type mismatch (scenario B)");
+    if (last.entity_id != "t1") return fail("entity_id mismatch (scenario B)");
+    if (last.op != "upsert") return fail("op mismatch (scenario B)");
+    if (last.payload.find("Sweep floor") == std::string::npos)
+      return fail("payload content mismatch (scenario B)");
+  }
+
+  std::cout << "OK: upsertTask + event_log verified, version=" << EventStore::version() << std::endl;
   return 0;
 }

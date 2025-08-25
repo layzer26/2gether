@@ -28,6 +28,7 @@ This repository is intended as a demonstration of clean architecture, team-ready
 - Offline-first persistence using SQLite.
 - Unit tests for the core C++ logic.
 - Continuous Integration via GitHub Actions.
+- Integration with google maps estimated travel times based on current traffic and calender event time
 
 See [docs/PERMISSIONS.md](docs/PERMISSIONS.md) for details on roles and visibility.
 
