@@ -6,14 +6,26 @@ struct sqlite3; // forward-declare
 
 namespace together {
 
+// Move TaskRow to namespace scope so it can be referenced without EventStore::
+struct TaskRow {
+  std::string id;
+  std::string title;
+  std::string assignees_csv;
+  long long due_at = 0;
+  int points = 0;
+  std::string status;
+  std::string visibility_tag;
+  long long updated_at = 0;
+};
+
 // Minimal event shape for now (payload kept as JSON string)
 struct DeltaEvent {
-  long long seq = 0;        // assigned by DB
-  std::string entity_type;  // "task", "event", "budget_tx", ...
-  std::string entity_id;    // caller id (e.g., "t1")
-  std::string op;           // "upsert" | "delete"
-  std::string payload;      // JSON now (protobuf later)
-  long long ts = 0;         // epoch millis
+  long long seq = 0;       // assigned by DB
+  std::string entity_type; // "task", "event", "budget_tx", ...
+  std::string entity_id;   // caller id (e.g., "t1")
+  std::string op;          // "upsert" | "delete"
+  std::string payload;     // JSON now (protobuf later)
+  long long ts = 0;        // epoch millis
 };
 
 class EventStore {
@@ -21,53 +33,44 @@ public:
   EventStore();
   ~EventStore();
 
-  EventStore(const EventStore&) = delete;
-  EventStore& operator=(const EventStore&) = delete;
+  EventStore(const EventStore &) = delete;
+  EventStore &operator=(const EventStore &) = delete;
 
   // Open or create the database file; ensures schema exists.
   // Returns empty string on success; otherwise error message.
-  std::string open(const std::string& db_path);
+  std::string open(const std::string &db_path);
 
   // Append one event; returns new seq (>=1) or negative error code.
-  long long append(const DeltaEvent& ev);
+  long long append(const DeltaEvent &ev);
 
   // Return events with seq > since_seq (ascending).
   // On error, returns empty vector and sets out_error.
-  std::vector<DeltaEvent> since(long long since_seq, std::string& out_error) const;
+  std::vector<DeltaEvent> since(long long since_seq,
+                                std::string &out_error) const;
 
   // Insert or update a task row and append a matching event_log record.
   // Returns the event_log seq (>=1) on success; negative on error.
-  long long upsertTask(const std::string& id,
-                       const std::string& title,
-                       const std::string& assignees_csv,
-                       long long due_at,
-                       int points,
-                       const std::string& status,
-                       const std::string& visibility_tag,
+  long long upsertTask(const std::string &id, const std::string &title,
+                       const std::string &assignees_csv, long long due_at,
+                       int points, const std::string &status,
+                       const std::string &visibility_tag,
                        long long updated_at_millis,
-                       const std::string& payload_json);
+                       const std::string &payload_json);
 
-  static const char* version();
+  static const char *version();
 
-  long long deleteTask (const std::string& id,
-                        long long ts_millis,
-                        const std::string& payload_json);
+  long long deleteTask(const std::string &id, long long ts_millis,
+                       const std::string &payload_json);
 
-  struct TaskRow {
-    std::string id; 
-    std::string title;
-    std::string assignees_csv;
-    long long due_at =0;
-    int points =0;
-    std::string status;
-    std::string visibility_tag;
-    long long updated_at =0;
-  };
+  // TaskRow removed from class scope; now available at namespace scope.
 
-  bool getTaskId(const std::string& id, TaskRow& out, std::string& out_error) const;
+  bool getTaskId(const std::string &id, TaskRow &out,
+                 std::string &out_error) const;
+  std::vector<TaskRow> listTasks(const std::string &status_filter, int limit,
+                            int offset, std::string &out_error) const;
 
 private:
-  sqlite3* db_ = nullptr;
+  sqlite3 *db_ = nullptr;
 
   // Create tables/indexes. Empty string on success, else error message.
   std::string initSchema();

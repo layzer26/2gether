@@ -12,16 +12,18 @@ using std::vector;
 
 namespace together {
 
-EventStore::EventStore() = default;
+EventStore::EventStore() = default; // EventStore::EventStore
 
 EventStore::~EventStore() {
   if (db_) {
     sqlite3_close(db_);
     db_ = nullptr;
   }
-}
+} // EventStore::~EventStore
 
-const char *EventStore::version() { return "2gether_core/0.2.0"; }
+const char *EventStore::version() {
+  return "2gether_core/0.2.0";
+} // EventStore::version
 
 string EventStore::open(const string &db_path) {
   if (db_)
@@ -45,7 +47,7 @@ string EventStore::open(const string &db_path) {
     sqlite3_free(errmsg);
 
   return {};
-}
+} // EventStore::open
 
 string EventStore::initSchema() {
   const char *ddl = R"SQL(
@@ -83,7 +85,7 @@ string EventStore::initSchema() {
     return "schema creation failed: " + err;
   }
   return {};
-}
+} // EventStore::initSchema
 
 long long EventStore::append(const DeltaEvent &ev) {
   if (!db_)
@@ -113,7 +115,7 @@ long long EventStore::append(const DeltaEvent &ev) {
   long long new_seq = (long long)sqlite3_last_insert_rowid(db_);
   sqlite3_finalize(stmt);
   return new_seq;
-}
+} // EventStore::append
 
 vector<DeltaEvent> EventStore::since(long long since_seq,
                                      string &out_error) const {
@@ -156,7 +158,7 @@ vector<DeltaEvent> EventStore::since(long long since_seq,
 
   sqlite3_finalize(stmt);
   return out;
-}
+} // EventStore::since
 
 bool EventStore::getTaskId(const string &id, TaskRow &out,
                            string &out_error) const {
@@ -175,10 +177,10 @@ bool EventStore::getTaskId(const string &id, TaskRow &out,
     return false;
   }
 
-  //TODO: bind id
+  // TODO: bind id
   sqlite3_bind_text(st, 1, id.c_str(), -1, SQLITE_TRANSIENT);
-bool ok = false;
-  if (sqlite3_step(st) ==SQLITE_ROW){
+  bool ok = false;
+  if (sqlite3_step(st) == SQLITE_ROW) {
     out.id = reinterpret_cast<const char *>(sqlite3_column_text(st, 0));
     out.title = reinterpret_cast<const char *>(sqlite3_column_text(st, 1));
     out.assignees_csv =
@@ -189,20 +191,16 @@ bool ok = false;
     out.visibility_tag =
         reinterpret_cast<const char *>(sqlite3_column_text(st, 6));
     out.updated_at = sqlite3_column_int64(st, 7);
-    
+
     ok = true;
-  }else {
-    out_error="not found";
+  } else {
+    out_error = "not found";
   }
-  
-  //TODO step,read columns into out
-  //if (sqlite3_step(st) == SQLITE_ROW) {
-  //  ok = true;
-  //}
 
   sqlite3_finalize(st);
   return ok;
-}
+} // EventStore::getTaskId
+
 long long EventStore::upsertTask(const string &id, const string &title,
                                  const string &assignees_csv, long long due_at,
                                  int points, const string &status,
@@ -297,7 +295,7 @@ long long EventStore::upsertTask(const string &id, const string &title,
   }
 
   return ev_seq;
-}
+} // EventStore::upsertTask
 long long EventStore::deleteTask(const std::string &id, long long ts_millis,
                                  const std::string &json_payload) {
   if (!db_)
@@ -373,6 +371,57 @@ long long EventStore::deleteTask(const std::string &id, long long ts_millis,
   }
 
   return ev_seq;
+} // EventStore::deleteTask
+
+std::vector<TaskRow> EventStore::listTasks(const std::string &status_filter,
+                                           int limit,
+                                           int offset,
+                                           std::string &out_error) const {
+    std::vector<TaskRow> results;
+    out_error.clear();
+
+    if (!db_) {
+        out_error = "database not open";
+        return results;
+    }
+
+    const char *sql =
+        "SELECT id, title, assignees_csv, due_at, points, status, visibility_tag, updated_at "
+        "FROM task "
+        "WHERE (? = '' OR status = ?) "
+        "ORDER BY updated_at DESC "
+        "LIMIT ? OFFSET ?";
+
+    sqlite3_stmt *stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        out_error = "prepare failed in listTasks";
+        return results;
+    }
+
+    // bind filter, limit, offset
+    sqlite3_bind_text(stmt, 1, status_filter.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, status_filter.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 3, limit);
+    sqlite3_bind_int(stmt, 4, offset);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        TaskRow row;
+        row.id            = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
+        row.title         = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1));
+        row.assignees_csv = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 2));
+        row.due_at        = sqlite3_column_int64(stmt, 3);
+        row.points        = sqlite3_column_int(stmt, 4);
+        row.status        = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 5));
+        row.visibility_tag= reinterpret_cast<const char *>(sqlite3_column_text(stmt, 6));
+        row.updated_at    = sqlite3_column_int64(stmt, 7);
+
+        results.push_back(std::move(row));
+    }
+
+    sqlite3_finalize(stmt);
+    return results;
 }
+
+
 
 } // namespace together
