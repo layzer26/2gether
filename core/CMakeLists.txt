@@ -16,4 +16,11 @@ target_link_libraries(2gether_core PUBLIC SQLite::SQLite3)
 enable_testing()
 add_executable(core_tests tests/test_event_store.cpp)
 target_link_libraries(core_tests PRIVATE 2gether_core)
-add_test(NAME CoreTests COMMAND core_tests)
+add_test(NAME ScenarioA COMMAND core_tests --case A)
+add_test(NAME ScenarioB COMMAND core_tests --case B)
+add_test(NAME ScenarioC COMMAND core_tests --case C)
+add_test(NAME ScenarioD COMMAND core_tests --case D)
+add_test(NAME ScenarioE COMMAND core_tests --case E)
+
+
+add_test(NAME AllScenarios COMMAND core_tests)
