@@ -147,6 +147,26 @@ int main() {
       return fail("payload content mismatch (scenario C)");
   }
 
+  // --- Scenario D: getTaskById returns the row we just wrote
+{
+  const long long now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                             std::chrono::system_clock::now().time_since_epoch()).count();
+  const std::string payload = R"({"title":"Homework","assignees":"kid3","points":4})";
+  long long ev = store.upsertTask("t_read", "Homework", "kid3", 0, 4, "open", "family", now_ms, payload);
+  if (ev < 1) return fail("Scenario D: upsertTask failed");
+
+  together::EvenStore::TaskRow row;
+  std::string err;
+  bool ok = store.getTaskById("t_read", row, err);
+  if (!ok) return fail(std::string("Scenario D: getTaskById failed: ") + err);
+
+  if (row.title != "Homework") return fail("Scenario D: title mismatch");
+  if (row.assignees_csv != "kid3") return fail("Scenario D: assignees mismatch");
+  if (row.points != 4) return fail("Scenario D: points mismatch");
+  if (row.status != "open") return fail("Scenario D: status mismatch");
+}
+ 
+
   std::cout << "OK: upsertTask + event_log verified, version="
             << EventStore::version() << std::endl;
 

@@ -7,7 +7,6 @@
 #include <utility>
 #include <vector>
 
-
 using std::string;
 using std::vector;
 
@@ -159,6 +158,51 @@ vector<DeltaEvent> EventStore::since(long long since_seq,
   return out;
 }
 
+bool EventStore::getTaskId(const string &id, TaskRow &out,
+                           string &out_error) const {
+  out_error.clear();
+  if (!db_) {
+    out_error = "database not open";
+    return false;
+  }
+
+  const char *sql = "SELECT id, title, assignees_csv, due_at, points, status, "
+                    "visibility_tag, updated_at "
+                    "FROM task WHERE id = ?";
+  sqlite3_stmt *st = nullptr;
+  if (sqlite3_prepare_v2(db_, sql, -1, &st, nullptr) != SQLITE_OK) {
+    out_error = "prepare failed";
+    return false;
+  }
+
+  //TODO: bind id
+  sqlite3_bind_text(st, 1, id.c_str(), -1, SQLITE_TRANSIENT);
+bool ok = false;
+  if (sqlite3_step(st) ==SQLITE_ROW){
+    out.id = reinterpret_cast<const char *>(sqlite3_column_text(st, 0));
+    out.title = reinterpret_cast<const char *>(sqlite3_column_text(st, 1));
+    out.assignees_csv =
+        reinterpret_cast<const char *>(sqlite3_column_text(st, 2));
+    out.due_at = sqlite3_column_int64(st, 3);
+    out.points = sqlite3_column_int(st, 4);
+    out.status = reinterpret_cast<const char *>(sqlite3_column_text(st, 5));
+    out.visibility_tag =
+        reinterpret_cast<const char *>(sqlite3_column_text(st, 6));
+    out.updated_at = sqlite3_column_int64(st, 7);
+    
+    ok = true;
+  }else {
+    out_error="not found";
+  }
+  
+  //TODO step,read columns into out
+  //if (sqlite3_step(st) == SQLITE_ROW) {
+  //  ok = true;
+  //}
+
+  sqlite3_finalize(st);
+  return ok;
+}
 long long EventStore::upsertTask(const string &id, const string &title,
                                  const string &assignees_csv, long long due_at,
                                  int points, const string &status,
@@ -256,29 +300,33 @@ long long EventStore::upsertTask(const string &id, const string &title,
 }
 long long EventStore::deleteTask(const std::string &id, long long ts_millis,
                                  const std::string &json_payload) {
-  if (!db_) return -1;
+  if (!db_)
+    return -1;
 
-  //Begin transaction 
-  char* errmsg = nullptr; 
-  if (sqlite3_exec(db_, "BEGIN IMMEDIATE;",nullptr, nullptr, &errmsg) != SQLITE_OK) {
+  // Begin transaction
+  char *errmsg = nullptr;
+  if (sqlite3_exec(db_, "BEGIN IMMEDIATE;", nullptr, nullptr, &errmsg) !=
+      SQLITE_OK) {
     string err = errmsg ? errmsg : "begin failed";
-    if (errmsg) sqlite3_free(errmsg);
+    if (errmsg)
+      sqlite3_free(errmsg);
     return -2;
   }
 
-  //soft-delete the task 
-  const char* sql_task = "UPDATE task SET status='deleted', updated_at=? WHERE id=?";
-   
-  sqlite3_stmt* st_task = nullptr;
-  if (sqlite3_prepare_v2(db_ , sql_task, -1 , &st_task, nullptr)!= SQLITE_OK){
+  // soft-delete the task
+  const char *sql_task =
+      "UPDATE task SET status='deleted', updated_at=? WHERE id=?";
+
+  sqlite3_stmt *st_task = nullptr;
+  if (sqlite3_prepare_v2(db_, sql_task, -1, &st_task, nullptr) != SQLITE_OK) {
     sqlite3_exec(db_, "ROLLBACK;", nullptr, nullptr, nullptr);
     return -3;
-  } 
+  }
 
   sqlite3_bind_int64(st_task, 1, (sqlite3_int64)ts_millis);
   sqlite3_bind_text(st_task, 2, id.c_str(), -1, SQLITE_TRANSIENT);
 
-   int rc_task = sqlite3_step(st_task);
+  int rc_task = sqlite3_step(st_task);
   sqlite3_finalize(st_task);
   if (rc_task != SQLITE_DONE) {
     sqlite3_exec(db_, "ROLLBACK;", nullptr, nullptr, nullptr);
@@ -286,23 +334,24 @@ long long EventStore::deleteTask(const std::string &id, long long ts_millis,
   }
 
   //  Append delete event
-  const char* sql_ev =
+  const char *sql_ev =
       "INSERT INTO event_log(entity_type, entity_id, op, payload_blob, ts) "
       "VALUES(?,?,?,?,?)";
 
-  sqlite3_stmt* st_ev = nullptr;
+  sqlite3_stmt *st_ev = nullptr;
   if (sqlite3_prepare_v2(db_, sql_ev, -1, &st_ev, nullptr) != SQLITE_OK) {
     sqlite3_exec(db_, "ROLLBACK;", nullptr, nullptr, nullptr);
     return -5;
   }
 
-  const char* entity_type = "task";
-  const char* op = "delete";
+  const char *entity_type = "task";
+  const char *op = "delete";
 
-  sqlite3_bind_text (st_ev, 1, entity_type, -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text (st_ev, 2, id.c_str(),  -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text (st_ev, 3, op,          -1, SQLITE_TRANSIENT);
-  sqlite3_bind_blob (st_ev, 4, json_payload.data(), (int)json_payload.size(), SQLITE_TRANSIENT);
+  sqlite3_bind_text(st_ev, 1, entity_type, -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(st_ev, 2, id.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(st_ev, 3, op, -1, SQLITE_TRANSIENT);
+  sqlite3_bind_blob(st_ev, 4, json_payload.data(), (int)json_payload.size(),
+                    SQLITE_TRANSIENT);
   sqlite3_bind_int64(st_ev, 5, (sqlite3_int64)ts_millis);
 
   int rc_ev = sqlite3_step(st_ev);
@@ -317,12 +366,13 @@ long long EventStore::deleteTask(const std::string &id, long long ts_millis,
   // Commit
   if (sqlite3_exec(db_, "COMMIT;", nullptr, nullptr, &errmsg) != SQLITE_OK) {
     std::string err = errmsg ? errmsg : "commit failed";
-    if (errmsg) sqlite3_free(errmsg);
+    if (errmsg)
+      sqlite3_free(errmsg);
     sqlite3_exec(db_, "ROLLBACK;", nullptr, nullptr, nullptr);
     return -7;
   }
 
   return ev_seq;
-
 }
+
 } // namespace together

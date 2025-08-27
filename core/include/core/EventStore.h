@@ -53,6 +53,19 @@ public:
                         long long ts_millis,
                         const std::string& payload_json);
 
+  struct TaskRow {
+    std::string id; 
+    std::string title;
+    std::string assignees_csv;
+    long long due_at =0;
+    int points =0;
+    std::string status;
+    std::string visibility_tag;
+    long long updated_at =0;
+  };
+
+  bool getTaskId(const std::string& id, TaskRow& out, std::string& out_error) const;
+
 private:
   sqlite3* db_ = nullptr;
 
